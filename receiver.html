@@ -2,72 +2,28 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ReVoxRX</title>
-  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReVoxRX - Receptor</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-md w-full text-center">
-    <h1 class="text-5xl font-bold mb-2">ReVoxRX</h1>
-    <p class="text-zinc-400 mb-8">Receptor en vivo</p>
-
-    <input id="signalData" placeholder="Pega todo el enlace o el código de señal" 
-           class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-5 text-sm mb-6">
-
-    <button id="connectBtn" class="w-full h-14 text-xl font-semibold bg-emerald-600 rounded-3xl active:bg-emerald-700">
-      🔊 CONECTAR Y ESCUCHAR
+  <div class="max-w-md w-full">
+    <h1 class="text-4xl font-bold text-center mb-8">ReVoxRX</h1>
+    <p class="text-center text-zinc-400 mb-8">Pega el enlace que te enviaron</p>
+    
+    <input id="urlInput" placeholder="Pega aquí el enlace completo" class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-5 mb-6">
+    
+    <button onclick="openReceiver()" 
+            class="w-full h-14 text-xl font-semibold bg-emerald-600 rounded-3xl">
+      🔊 ABRIR RECEPTOR
     </button>
-
-    <audio id="remoteAudio" autoplay controls class="w-full mt-8 hidden"></audio>
-
-    <div id="status" class="mt-6 text-sm font-mono"></div>
   </div>
 
   <script>
-    document.getElementById('connectBtn').addEventListener('click', () => {
-      let signalStr = document.getElementById('signalData').value.trim();
-      const status = document.getElementById('status');
-
-      if (!signalStr) return alert("Pega el enlace completo o el código");
-
-      try {
-        // Si pega todo el enlace, extrae la parte signal
-        if (signalStr.includes('?signal=')) {
-          signalStr = decodeURIComponent(signalStr.split('?signal=')[1]);
-        }
-
-        const signalData = JSON.parse(signalStr);
-
-        status.textContent = "Conectando...";
-
-        const peer = new SimplePeer({
-          initiator: false,
-          trickle: false,
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:openrelay.metered.ca:80' }
-            ]
-          }
-        });
-
-        peer.signal(signalData);
-
-        peer.on('stream', stream => {
-          const audio = document.getElementById('remoteAudio');
-          audio.srcObject = stream;
-          audio.classList.remove('hidden');
-          audio.play();
-          status.innerHTML = '✅ ESCUCHANDO EN VIVO';
-        });
-
-        peer.on('error', err => status.textContent = "Error: " + err.message);
-
-      } catch (e) {
-        status.textContent = "Error al procesar el enlace";
-      }
-    });
+    function openReceiver() {
+      let url = document.getElementById('urlInput').value.trim();
+      if (url) window.open(url, '_blank');
+    }
   </script>
 </body>
 </html>

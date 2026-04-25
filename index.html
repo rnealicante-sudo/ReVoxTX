@@ -5,185 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>ReVoxTX</title>
-  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .vu-bar { transition: height 0.06s linear; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
   </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen">
 
 <div class="max-w-md mx-auto bg-zinc-900 min-h-screen flex flex-col">
   <header class="bg-gradient-to-r from-red-700 to-red-600 px-6 py-6">
-    <div class="flex justify-between items-center">
-      <h1 class="text-4xl font-bold">ReVoxTX</h1>
-      <div id="onAir" class="hidden px-6 py-2 bg-red-600 rounded-full font-bold animate-pulse">● ON AIR</div>
-    </div>
+    <h1 class="text-4xl font-bold text-center">ReVoxTX</h1>
+    <p class="text-red-100 text-center text-sm">Transmisor de voz profesional</p>
   </header>
 
   <main class="flex-1 p-6 space-y-8">
-    <!-- Micrófono -->
-    <div>
-      <label class="block text-zinc-400 mb-2">🎤 MICRÓFONO</label>
-      <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4"></select>
+    <div class="text-center">
+      <button onclick="startTransmission()" 
+              id="startBtn"
+              class="w-full h-16 text-2xl font-bold bg-red-600 rounded-3xl active:bg-red-700 transition-all">
+        🎤 INICIAR TRANSMISIÓN
+      </button>
     </div>
 
-    <!-- VU Meter -->
-    <div>
-      <label class="block text-zinc-400 mb-2">NIVEL DE ENTRADA (VU)</label>
-      <div id="vuContainer" class="h-40 bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-4 flex items-end gap-1 overflow-hidden"></div>
-      <div class="flex justify-between text-xs text-zinc-500 mt-1 px-2">
-        <span>-42</span><span class="text-emerald-400">0 dB</span><span class="text-red-500">+12</span>
+    <div id="linkContainer" class="hidden space-y-4">
+      <p class="text-xs text-zinc-400">ENLACE PARA RECEPTOR</p>
+      <div id="link" class="bg-zinc-950 p-5 rounded-2xl border border-dashed border-zinc-600 text-emerald-400 font-mono text-sm break-all"></div>
+      
+      <div class="grid grid-cols-4 gap-3">
+        <button onclick="copyLink()" class="py-4 bg-zinc-800 rounded-2xl text-sm">📋</button>
+        <button onclick="shareWhatsApp()" class="py-4 bg-green-600 rounded-2xl text-sm">WA</button>
+        <button onclick="shareTelegram()" class="py-4 bg-blue-600 rounded-2xl text-sm">TG</button>
+        <button onclick="shareEmail()" class="py-4 bg-zinc-800 rounded-2xl text-sm">✉️</button>
       </div>
     </div>
-
-    <!-- Ganancia -->
-    <div>
-      <div class="flex justify-between mb-2">
-        <span class="text-zinc-400">GANANCIA</span>
-        <span id="gainValue" class="font-mono text-3xl text-emerald-400">+8 dB</span>
-      </div>
-      <input type="range" id="gainSlider" min="0" max="36" value="8" step="1" class="w-full accent-red-600">
-    </div>
-
-    <div id="status" class="text-center text-sm font-mono bg-zinc-800 p-4 rounded-2xl">Pulsa INICIAR para activar micrófono</div>
   </main>
-
-  <div class="p-6 border-t border-zinc-700">
-    <button id="startBtn" class="w-full h-16 text-2xl font-bold bg-red-600 rounded-3xl active:bg-red-700">
-      🎤 INICIAR TRANSMISIÓN
-    </button>
-  </div>
-
-  <div id="linkContainer" class="hidden p-6 border-t border-zinc-700 bg-zinc-900">
-    <p class="text-xs text-zinc-400 mb-2">ENLACE PARA RECEPTOR</p>
-    <div id="link" class="bg-zinc-950 p-4 rounded-2xl border border-dashed border-zinc-600 text-emerald-400 break-all font-mono"></div>
-  </div>
 </div>
 
 <script>
-  let peer = null;
-  let localStream = null;
-  let audioContext = null;
-  let analyser = null;
-  let gainNode = null;
-  let source = null;
-  let leds = [];
-  let isTransmitting = false;
-
-  function createVUMeter() {
-    const container = document.getElementById('vuContainer');
-    container.innerHTML = '';
-    leds = [];
-    for (let i = 0; i < 32; i++) {
-      const led = document.createElement('div');
-      led.className = `vu-bar flex-1 bg-zinc-700 rounded`;
-      container.appendChild(led);
-      leds.push(led);
-    }
+  function startTransmission() {
+    const roomId = "revox-" + Math.random().toString(36).substring(2, 10);
+    
+    // Configuración optimizada para voz de alta calidad
+    const pushUrl = `https://vdo.ninja/?push=${roomId}&proaudio&stereo&audiobitrate=256&label=Reportero`;
+    
+    const viewUrl = `https://vdo.ninja/?view=${roomId}&proaudio&stereo&audiobitrate=256`;
+    
+    document.getElementById('link').innerHTML = `
+      <a href="${viewUrl}" target="_blank" class="underline">${viewUrl}</a>
+    `;
+    document.getElementById('linkContainer').classList.remove('hidden');
+    
+    // Abrir el transmisor en nueva pestaña
+    window.open(pushUrl, '_blank');
   }
 
-  function updateVU() {
-    if (!analyser) return;
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(data);
-    const avg = data.reduce((a, b) => a + b) / data.length;
-    const level = Math.min(1, avg / 180);
-
-    leds.forEach((led, i) => {
-      const pos = i / 32;
-      led.style.height = (pos < level ? 90 : 8) + "%";
-      led.style.backgroundColor = pos > 0.78 ? '#ef4444' : pos > 0.6 ? '#eab308' : '#22c55e';
-    });
+  function copyLink() {
+    const link = document.getElementById('link').querySelector('a').href;
+    navigator.clipboard.writeText(link);
+    alert('✅ Enlace copiado');
   }
 
-  async function startTransmission() {
-    const btn = document.getElementById('startBtn');
-    const status = document.getElementById('status');
-
-    if (isTransmitting) {
-      localStream?.getTracks().forEach(t => t.stop());
-      audioContext?.close();
-      peer?.destroy();
-      btn.textContent = "🎤 INICIAR TRANSMISIÓN";
-      document.getElementById('onAir').classList.add('hidden');
-      document.getElementById('linkContainer').classList.add('hidden');
-      isTransmitting = false;
-      return;
-    }
-
-    try {
-      // === MICRÓFONO ===
-      localStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: { ideal: 48000 },
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: false
-        }
-      });
-
-      // === Audio Context + VU ===
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaStreamSource(localStream);
-      gainNode = audioContext.createGain();
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-
-      source.connect(gainNode);
-      gainNode.connect(analyser);
-
-      createVUMeter();
-      setInterval(updateVU, 50);
-
-      // === Transmisión ===
-      peer = new SimplePeer({
-        initiator: true,
-        trickle: false,
-        stream: localStream,
-        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-      });
-
-      peer.on('signal', data => {
-        const link = `${window.location.origin}/receiver.html?signal=${encodeURIComponent(JSON.stringify(data))}`;
-        document.getElementById('link').textContent = link;
-        document.getElementById('linkContainer').classList.remove('hidden');
-        btn.textContent = "● ON AIR";
-        document.getElementById('onAir').classList.remove('hidden');
-        status.textContent = "Transmisión activa - Comparte el enlace";
-        isTransmitting = true;
-      });
-
-    } catch (err) {
-      status.textContent = "❌ Error micrófono: " + err.message;
-      console.error(err);
-    }
+  function shareWhatsApp() {
+    const link = document.getElementById('link').querySelector('a').href;
+    window.open(`https://wa.me/?text=${encodeURIComponent('🎙️ ReVoxTX - Transmisión en vivo: ' + link)}`);
   }
 
-  // Ganancia
-  document.getElementById('gainSlider').addEventListener('input', e => {
-    if (gainNode) {
-      gainNode.gain.value = Math.pow(10, e.target.value / 20);
-      document.getElementById('gainValue').textContent = `+${e.target.value} dB`;
-    }
-  });
-
-  document.getElementById('startBtn').addEventListener('click', startTransmission);
-
-  // Cargar micrófonos
-  async function loadMics() {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const select = document.getElementById('micSelect');
-    select.innerHTML = '';
-    devices.filter(d => d.kind === 'audioinput').forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.deviceId;
-      opt.textContent = d.label || 'Micrófono';
-      select.appendChild(opt);
-    });
+  function shareTelegram() {
+    const link = document.getElementById('link').querySelector('a').href;
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=🎙️ ReVoxTX en vivo`);
   }
-  loadMics();
-  navigator.mediaDevices.addEventListener('devicechange', loadMics);
+
+  function shareEmail() {
+    const link = document.getElementById('link').querySelector('a').href;
+    window.location.href = `mailto:?subject=ReVoxTX - Enlace en vivo&body=${encodeURIComponent(link)}`;
+  }
 </script>
 </body>
 </html>
