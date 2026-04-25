@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReVoxRX - Receptor</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center">
+  <div class="max-w-md w-full bg-zinc-900 rounded-3xl shadow-2xl p-8 border border-zinc-800">
+    <h1 class="text-4xl font-bold text-center mb-2">ReVoxRX</h1>
+    <p class="text-center text-zinc-400 mb-10">Receptor en vivo</p>
+
+    <input id="peerId" placeholder="Pega el ID del transmisor" 
+           class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-5 text-lg mb-6">
+    
+    <button id="connectBtn"
+            class="w-full py-6 text-xl font-semibold bg-emerald-600 hover:bg-emerald-700 rounded-2xl transition-all">
+      🔊 CONECTAR Y ESCUCHAR
+    </button>
+
+    <audio id="remoteAudio" autoplay controls class="w-full mt-8 hidden"></audio>
+
+    <div id="status" class="mt-6 text-center font-mono text-sm"></div>
+  </div>
+
+  <script>
+    document.getElementById('connectBtn').addEventListener('click', () => {
+      const peerId = document.getElementById('peerId').value.trim();
+      if (!peerId) return alert('Introduce el ID');
+
+      const peer = new Peer();
+      const status = document.getElementById('status');
+      const audioEl = document.getElementById('remoteAudio');
+
+      status.textContent = 'Conectando...';
+
+      peer.on('open', () => {
+        const call = peer.call(peerId);
+        status.textContent = 'Llamando al transmisor...';
+      });
+
+      peer.on('call', (call) => {
+        call.answer();
+        call.on('stream', stream => {
+          audioEl.srcObject = stream;
+          audioEl.classList.remove('hidden');
+          status.innerHTML = '✅ <span class="text-emerald-400">Escuchando en vivo - Calidad Opus 48kHz</span>';
+        });
+      });
+    });
+
+    // Auto-completar desde URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('id')) {
+      document.getElementById('peerId').value = urlParams.get('id');
+    }
+  </script>
+</body>
+</html>
