@@ -3,52 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>ReVoxRX</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-6">
-  <div class="w-full max-w-md">
-    <h1 class="text-5xl font-bold text-center mb-2">ReVoxRX</h1>
+  <div class="max-w-md w-full">
+    <h1 class="text-5xl font-bold text-center mb-1">ReVoxRX</h1>
     <p class="text-center text-zinc-400 mb-10">Receptor en vivo</p>
 
-    <input id="peerId" placeholder="Pega el ID aquí" class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-5 text-center text-lg mb-6">
+    <input id="peerId" placeholder="Pega el ID del transmisor" 
+           class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-5 text-center text-lg mb-6">
 
-    <button id="connectBtn" class="w-full h-14 text-xl font-semibold bg-emerald-600 rounded-3xl active:bg-emerald-700">
-      🔊 ESCUCHAR EN VIVO
+    <button id="connectBtn" 
+            class="w-full h-14 text-xl font-semibold bg-emerald-600 rounded-3xl active:bg-emerald-700">
+      🔊 CONECTAR Y ESCUCHAR
     </button>
 
-    <audio id="remoteAudio" autoplay controls class="w-full mt-8 hidden"></audio>
+    <audio id="remoteAudio" autoplay controls class="w-full mt-8"></audio>
 
-    <div id="status" class="mt-6 text-center font-mono text-sm"></div>
+    <div id="status" class="mt-6 text-center font-mono text-sm text-emerald-400"></div>
   </div>
 
   <script>
+    let peer;
+
     document.getElementById('connectBtn').addEventListener('click', () => {
       const peerId = document.getElementById('peerId').value.trim();
-      if (!peerId) return alert('Introduce el ID');
+      if (!peerId) return alert('Por favor pega el ID');
 
-      const peer = new Peer();
       const status = document.getElementById('status');
-      const audio = document.getElementById('remoteAudio');
-
       status.textContent = 'Conectando...';
 
-      peer.on('open', () => peer.call(peerId));
+      peer = new Peer();
 
-      peer.on('call', call => {
-        call.answer();
-        call.on('stream', stream => {
+      peer.on('open', () => {
+        const call = peer.call(peerId);   // Receptor llama al transmisor
+        status.textContent = 'Llamando...';
+      });
+
+      peer.on('call', (call) => {
+        call.answer();                    // Acepta si recibe llamada (por si acaso)
+        call.on('stream', (stream) => {
+          const audio = document.getElementById('remoteAudio');
           audio.srcObject = stream;
-          audio.classList.remove('hidden');
-          status.innerHTML = '✅ Escuchando en vivo';
+          audio.play().catch(() => {});
+          status.textContent = '✅ ESCUCHANDO EN VIVO';
         });
+      });
+
+      peer.on('error', (err) => {
+        document.getElementById('status').textContent = '❌ Error: ' + err.type;
       });
     });
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('id')) document.getElementById('peerId').value = urlParams.get('id');
+    // Auto-cargar ID desde URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('id')) {
+      document.getElementById('peerId').value = params.get('id');
+    }
   </script>
 </body>
 </html>
