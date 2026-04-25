@@ -2,22 +2,21 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReVoxRX - Receptor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>ReVoxRX</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center">
-  <div class="max-w-md w-full bg-zinc-900 rounded-3xl shadow-2xl p-8 border border-zinc-800">
-    <h1 class="text-4xl font-bold text-center mb-2">ReVoxRX</h1>
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-md">
+    <h1 class="text-5xl font-bold text-center mb-2">ReVoxRX</h1>
     <p class="text-center text-zinc-400 mb-10">Receptor en vivo</p>
 
-    <input id="peerId" placeholder="Pega el ID del transmisor" 
-           class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-5 text-lg mb-6">
-    
-    <button id="connectBtn"
-            class="w-full py-6 text-xl font-semibold bg-emerald-600 hover:bg-emerald-700 rounded-2xl transition-all">
-      🔊 CONECTAR Y ESCUCHAR
+    <input id="peerId" placeholder="Pega el ID aquí" class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-5 text-center text-lg mb-6">
+
+    <button id="connectBtn" class="w-full h-14 text-xl font-semibold bg-emerald-600 rounded-3xl active:bg-emerald-700">
+      🔊 ESCUCHAR EN VIVO
     </button>
 
     <audio id="remoteAudio" autoplay controls class="w-full mt-8 hidden"></audio>
@@ -32,30 +31,24 @@
 
       const peer = new Peer();
       const status = document.getElementById('status');
-      const audioEl = document.getElementById('remoteAudio');
+      const audio = document.getElementById('remoteAudio');
 
       status.textContent = 'Conectando...';
 
-      peer.on('open', () => {
-        const call = peer.call(peerId);
-        status.textContent = 'Llamando al transmisor...';
-      });
+      peer.on('open', () => peer.call(peerId));
 
-      peer.on('call', (call) => {
+      peer.on('call', call => {
         call.answer();
         call.on('stream', stream => {
-          audioEl.srcObject = stream;
-          audioEl.classList.remove('hidden');
-          status.innerHTML = '✅ <span class="text-emerald-400">Escuchando en vivo - Calidad Opus 48kHz</span>';
+          audio.srcObject = stream;
+          audio.classList.remove('hidden');
+          status.innerHTML = '✅ Escuchando en vivo';
         });
       });
     });
 
-    // Auto-completar desde URL
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('id')) {
-      document.getElementById('peerId').value = urlParams.get('id');
-    }
+    if (urlParams.get('id')) document.getElementById('peerId').value = urlParams.get('id');
   </script>
 </body>
 </html>

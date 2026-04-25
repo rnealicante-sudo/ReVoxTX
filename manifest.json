@@ -2,20 +2,12 @@
   "name": "ReVoxTX",
   "short_name": "ReVoxTX",
   "description": "Transmisor de audio profesional para radio",
-  "start_url": "/index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#18181b",
   "theme_color": "#b91c1c",
   "icons": [
-    {
-      "src": "https://via.placeholder.com/192x192/red/white?text=RX",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://via.placeholder.com/512x512/red/white?text=RX",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "https://via.placeholder.com/192/red/white?text=RX", "sizes": "192x192", "type": "image/png" },
+    { "src": "https://via.placeholder.com/512/red/white?text=RX", "sizes": "512x512", "type": "image/png" }
   ]
 }
