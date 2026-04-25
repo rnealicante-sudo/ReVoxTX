@@ -6,98 +6,111 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#b91c1c">
-  <link rel="manifest" href="manifest.json">
   <title>ReVoxTX</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-    .led { transition: height 0.08s linear; }
-    .vu-container { background: linear-gradient(#1f1f1f, #0a0a0a); }
-    .on-air-blink { animation: blink 800ms infinite; }
-    @keyframes blink { 0%,100% { background-color: #ef4444; } 50% { background-color: #991b1b; } }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .vu-bar { transition: height 0.07s linear; }
   </style>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen overflow-hidden">
+<body class="bg-zinc-950 text-white min-h-screen">
+
   <div class="max-w-md mx-auto bg-zinc-900 min-h-screen flex flex-col">
 
-    <div class="bg-gradient-to-r from-red-700 to-red-600 py-5 px-6 safe-top">
-      <div class="flex justify-between items-center">
+    <!-- HEADER -->
+    <header class="bg-gradient-to-r from-red-700 to-red-600 px-6 py-5">
+      <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold tracking-tighter">ReVoxTX</h1>
-          <p class="text-red-100 text-xs">Transmisor Profesional</p>
+          <h1 class="text-4xl font-bold tracking-tighter">ReVoxTX</h1>
+          <p class="text-red-100 text-sm">Transmisor en vivo</p>
         </div>
-        <div id="bigStatus" class="hidden px-6 py-2 text-sm font-bold bg-red-600 rounded-3xl on-air-blink">
+        <div id="statusIndicator" class="hidden text-xs font-bold px-5 py-2 bg-red-600 rounded-full animate-pulse">
           ● ON AIR
         </div>
       </div>
-    </div>
+    </header>
 
-    <div class="flex-1 p-5 space-y-8 overflow-auto">
+    <main class="flex-1 p-5 space-y-8 overflow-auto">
+
+      <!-- Micrófono -->
       <div>
-        <label class="block text-zinc-400 text-sm mb-2">🎤 MICRÓFONO</label>
-        <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4"></select>
+        <label class="text-zinc-400 text-sm block mb-2">🎤 MICRÓFONO</label>
+        <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-lg"></select>
       </div>
 
+      <!-- VU Meter -->
       <div>
-        <label class="block text-zinc-400 text-sm mb-2">NIVEL DE ENTRADA</label>
-        <div id="vuContainer" class="vu-container h-32 rounded-3xl p-4 flex items-end gap-1 border border-zinc-700"></div>
-        <div class="flex justify-between text-xs text-zinc-500 mt-1 px-2">
-          <span>-42</span><span class="text-emerald-400">0 dB</span><span class="text-red-500">+12</span>
+        <label class="text-zinc-400 text-sm block mb-2">NIVEL DE ENTRADA</label>
+        <div id="vuContainer" class="h-36 bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-4 flex items-end gap-1"></div>
+        <div class="flex justify-between text-xs text-zinc-500 mt-2 px-1">
+          <span>-42 dB</span>
+          <span class="text-emerald-400 font-medium">0 dB</span>
+          <span class="text-red-500">+12 dB</span>
         </div>
       </div>
 
+      <!-- Ganancia -->
       <div>
-        <div class="flex justify-between mb-3">
+        <div class="flex justify-between items-center mb-3">
           <span class="text-zinc-400">GANANCIA</span>
-          <span id="gainValue" class="font-mono text-2xl text-emerald-400">+8 dB</span>
+          <span id="gainValue" class="font-mono text-3xl text-emerald-400">+8 dB</span>
         </div>
-        <input type="range" id="gainSlider" min="0" max="30" value="8" step="1" class="w-full accent-red-500">
+        <input type="range" id="gainSlider" min="0" max="32" value="8" step="1" 
+               class="w-full accent-red-600">
       </div>
 
-      <div class="bg-zinc-950 border border-zinc-700 rounded-3xl p-6 space-y-6">
-        <h3 class="text-red-400 text-sm">EFECTOS</h3>
+      <!-- Efectos -->
+      <div class="bg-zinc-950 border border-zinc-700 rounded-3xl p-6">
+        <h3 class="text-red-400 text-sm mb-5">EFECTOS</h3>
         <div class="space-y-6">
-          <label class="flex justify-between items-center text-base">
-            <span>Compresor</span>
-            <input type="checkbox" id="compToggle" checked class="w-7 h-7 accent-red-600">
+          <label class="flex justify-between items-center">
+            <span class="text-lg">Compresor</span>
+            <input type="checkbox" id="compToggle" checked class="w-8 h-8 accent-red-600">
           </label>
-          <label class="flex justify-between items-center text-base">
-            <span>Puerta de Ruido</span>
-            <input type="checkbox" id="gateToggle" checked class="w-7 h-7 accent-red-600">
+          <label class="flex justify-between items-center">
+            <span class="text-lg">Puerta de Ruido</span>
+            <input type="checkbox" id="gateToggle" checked class="w-8 h-8 accent-red-600">
           </label>
-          <label class="flex justify-between items-center text-base">
-            <span>Limitador</span>
-            <input type="checkbox" id="limitToggle" checked class="w-7 h-7 accent-red-600">
+          <label class="flex justify-between items-center">
+            <span class="text-lg">Limitador</span>
+            <input type="checkbox" id="limitToggle" checked class="w-8 h-8 accent-red-600">
           </label>
         </div>
       </div>
-    </div>
+    </main>
 
-    <div class="p-5 border-t border-zinc-700">
-      <button id="startBtn" class="w-full h-16 text-xl font-semibold rounded-3xl bg-red-600 active:bg-red-700">
+    <!-- BOTÓN PRINCIPAL -->
+    <div class="p-5 border-t border-zinc-700 mt-auto">
+      <button id="startBtn"
+              class="w-full h-16 text-2xl font-bold rounded-3xl bg-red-600 active:bg-red-700 transition-all shadow-xl">
         🎤 INICIAR TRANSMISIÓN
       </button>
     </div>
 
-    <div id="status" class="text-center text-sm font-mono mx-5 mb-4 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 hidden"></div>
+    <!-- Estado -->
+    <div id="status" class="mx-5 mb-4 text-center text-sm font-mono bg-zinc-900 border border-zinc-700 rounded-2xl p-4 hidden"></div>
 
-    <div id="linkContainer" class="hidden p-5 border-t border-zinc-700 bg-zinc-900">
+    <!-- Enlace y Compartir -->
+    <div id="linkContainer" class="hidden border-t border-zinc-700 bg-zinc-900 p-5">
       <p class="text-xs text-zinc-400 mb-3">ENLACE PARA RECEPTOR</p>
-      <div id="link" class="bg-zinc-950 p-4 rounded-2xl border border-dashed border-zinc-600 text-emerald-400 text-sm break-all font-mono"></div>
+      <div id="link" class="bg-zinc-950 p-4 rounded-2xl border border-dashed border-zinc-600 text-emerald-400 break-all text-sm font-mono"></div>
       
-      <div class="grid grid-cols-4 gap-3 mt-5">
-        <button onclick="copyLink()" class="py-4 bg-zinc-800 rounded-2xl text-sm active:bg-zinc-700">📋</button>
-        <button onclick="shareWhatsApp()" class="py-4 bg-green-600 rounded-2xl text-sm active:bg-green-700">WA</button>
-        <button onclick="shareTelegram()" class="py-4 bg-blue-600 rounded-2xl text-sm active:bg-blue-700">TG</button>
-        <button onclick="shareEmail()" class="py-4 bg-zinc-800 rounded-2xl text-sm active:bg-zinc-700">✉️</button>
+      <div class="grid grid-cols-4 gap-3 mt-6">
+        <button onclick="copyLink()" class="py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm">📋</button>
+        <button onclick="shareWhatsApp()" class="py-4 bg-green-600 hover:bg-green-700 rounded-2xl text-sm">WA</button>
+        <button onclick="shareTelegram()" class="py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl text-sm">TG</button>
+        <button onclick="shareEmail()" class="py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm">✉️</button>
       </div>
     </div>
   </div>
 
   <script>
-    let peer, localStream, audioContext, source, gainNode, analyser;
-    let dataArray, leds = [];
+    let peer, localStream, audioContext, source, gainNode, analyser, dataArray, leds = [];
     let isTransmitting = false;
 
     function createVUMeter() {
@@ -106,7 +119,7 @@
       leds = [];
       for (let i = 0; i < 32; i++) {
         const led = document.createElement('div');
-        led.className = `led flex-1 bg-zinc-700 rounded`;
+        led.className = `vu-bar flex-1 bg-zinc-700 rounded`;
         container.appendChild(led);
         leds.push(led);
       }
@@ -115,13 +128,13 @@
     function updateVU() {
       if (!analyser) return;
       analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((a,b) => a + b) / dataArray.length;
-      const level = Math.min(1, avg / 160);
+      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      const level = Math.min(1, avg / 170);
 
       leds.forEach((led, i) => {
         const pos = i / 32;
-        led.style.height = (pos < level ? 85 : 12) + "%";
-        led.style.backgroundColor = pos > 0.78 ? '#ef4444' : pos > 0.6 ? '#eab308' : '#22c55e';
+        led.style.height = (pos < level ? 88 : 10) + "%";
+        led.style.backgroundColor = pos > 0.78 ? '#ef4444' : pos > 0.58 ? '#eab308' : '#22c55e';
       });
     }
 
@@ -150,17 +163,16 @@
 
     async function toggleTransmission() {
       const btn = document.getElementById('startBtn');
-      const status = document.getElementById('status');
-      const bigStatus = document.getElementById('bigStatus');
+      const statusEl = document.getElementById('status');
+      const indicator = document.getElementById('statusIndicator');
 
       if (isTransmitting) {
         localStream?.getTracks().forEach(t => t.stop());
         peer?.destroy();
         audioContext?.close();
         btn.textContent = "🎤 INICIAR TRANSMISIÓN";
-        bigStatus.classList.add('hidden');
+        indicator.classList.add('hidden');
         document.getElementById('linkContainer').classList.add('hidden');
-        status.classList.add('hidden');
         isTransmitting = false;
         return;
       }
@@ -168,7 +180,12 @@
       try {
         const micId = document.getElementById('micSelect').value;
         localStream = await navigator.mediaDevices.getUserMedia({
-          audio: { deviceId: micId ? { exact: micId } : undefined, sampleRate: { ideal: 48000 }, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+          audio: {
+            deviceId: micId ? { exact: micId } : undefined,
+            sampleRate: { ideal: 48000 },
+            echoCancellation: true,
+            noiseSuppression: true
+          }
         });
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -181,45 +198,43 @@
         gainNode.gain.value = 1.8;
         applyEffects();
         createVUMeter();
-        setInterval(updateVU, 60);
+        setInterval(updateVU, 50);
 
         peer = new Peer();
-        peer.on('open', id => {
+        peer.on('open', (id) => {
           const link = `${window.location.origin}/receiver.html?id=${id}`;
           document.getElementById('link').textContent = link;
           document.getElementById('linkContainer').classList.remove('hidden');
+          
           btn.textContent = "● ON AIR";
-          btn.classList.add('on-air-blink', 'bg-red-700');
-          bigStatus.classList.remove('hidden');
-          status.textContent = `EN VIVO - ID: ${id}`;
-          status.classList.remove('hidden');
+          indicator.classList.remove('hidden');
+          statusEl.textContent = `Transmisión activa - ID: ${id}`;
+          statusEl.classList.remove('hidden');
         });
 
         peer.on('call', call => call.answer(localStream));
         isTransmitting = true;
       } catch (err) {
-        status.textContent = "❌ " + err.message;
-        status.classList.remove('hidden');
+        statusEl.textContent = "❌ " + err.message;
+        statusEl.classList.remove('hidden');
       }
     }
 
-    // Controles
+    // Eventos
     document.getElementById('gainSlider').addEventListener('input', e => {
       if (gainNode) gainNode.gain.value = Math.pow(10, e.target.value / 20);
       document.getElementById('gainValue').textContent = `+${e.target.value} dB`;
     });
 
     document.querySelectorAll('#compToggle, #gateToggle, #limitToggle').forEach(el => {
-      el.addEventListener('change', () => isTransmitting && applyEffects());
+      el.addEventListener('change', () => { if (isTransmitting) applyEffects(); });
     });
 
-    // Compartir
-    function copyLink() { navigator.clipboard.writeText(document.getElementById('link').textContent); alert('✅ Enlace copiado'); }
-    function shareWhatsApp() { const l = document.getElementById('link').textContent; window.open(`https://wa.me/?text=${encodeURIComponent('🎙️ ReVoxTX en vivo: ' + l)}`); }
+    function copyLink() { navigator.clipboard.writeText(document.getElementById('link').textContent); alert('Enlace copiado'); }
+    function shareWhatsApp() { const l = document.getElementById('link').textContent; window.open(`https://wa.me/?text=${encodeURIComponent('🎙️ ReVoxTX: ' + l)}`); }
     function shareTelegram() { const l = document.getElementById('link').textContent; window.open(`https://t.me/share/url?url=${encodeURIComponent(l)}`); }
     function shareEmail() { const l = document.getElementById('link').textContent; window.location.href = `mailto:?subject=ReVoxTX&body=${encodeURIComponent(l)}`; }
 
-    // Micrófonos
     async function loadMics() {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const select = document.getElementById('micSelect');
@@ -232,6 +247,7 @@
       });
     }
 
+    // Inicializar
     document.getElementById('startBtn').addEventListener('click', toggleTransmission);
     navigator.mediaDevices.addEventListener('devicechange', loadMics);
     loadMics();
