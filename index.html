@@ -7,6 +7,9 @@
   <title>ReVoxTX</title>
   <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .vu-bar { transition: height 0.06s linear; }
+  </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen">
 
@@ -19,17 +22,31 @@
   </header>
 
   <main class="flex-1 p-6 space-y-8">
+    <!-- Micrófono -->
     <div>
-      <label class="block text-zinc-400 mb-2">🎤 Micrófono</label>
+      <label class="block text-zinc-400 mb-2">🎤 MICRÓFONO</label>
       <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4"></select>
     </div>
 
+    <!-- VU Meter -->
     <div>
-      <label class="block text-zinc-400 mb-2">Nivel de Entrada</label>
-      <div id="vuContainer" class="h-36 bg-zinc-950 border border-zinc-700 rounded-3xl p-4 flex items-end gap-1"></div>
+      <label class="block text-zinc-400 mb-2">NIVEL DE ENTRADA (VU)</label>
+      <div id="vuContainer" class="h-40 bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-4 flex items-end gap-1 overflow-hidden"></div>
+      <div class="flex justify-between text-xs text-zinc-500 mt-1 px-2">
+        <span>-42</span><span class="text-emerald-400">0 dB</span><span class="text-red-500">+12</span>
+      </div>
     </div>
 
-    <div id="status" class="text-center text-sm font-mono bg-zinc-800 p-4 rounded-2xl">Listo para transmitir</div>
+    <!-- Ganancia -->
+    <div>
+      <div class="flex justify-between mb-2">
+        <span class="text-zinc-400">GANANCIA</span>
+        <span id="gainValue" class="font-mono text-3xl text-emerald-400">+8 dB</span>
+      </div>
+      <input type="range" id="gainSlider" min="0" max="36" value="8" step="1" class="w-full accent-red-600">
+    </div>
+
+    <div id="status" class="text-center text-sm font-mono bg-zinc-800 p-4 rounded-2xl">Pulsa INICIAR para activar micrófono</div>
   </main>
 
   <div class="p-6 border-t border-zinc-700">
@@ -40,51 +57,91 @@
 
   <div id="linkContainer" class="hidden p-6 border-t border-zinc-700 bg-zinc-900">
     <p class="text-xs text-zinc-400 mb-2">ENLACE PARA RECEPTOR</p>
-    <div id="link" class="bg-zinc-950 p-4 rounded-2xl border border-dashed border-zinc-600 text-emerald-400 break-all font-mono text-sm"></div>
+    <div id="link" class="bg-zinc-950 p-4 rounded-2xl border border-dashed border-zinc-600 text-emerald-400 break-all font-mono"></div>
   </div>
 </div>
 
 <script>
   let peer = null;
   let localStream = null;
+  let audioContext = null;
+  let analyser = null;
+  let gainNode = null;
+  let source = null;
+  let leds = [];
   let isTransmitting = false;
 
-  const config = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:openrelay.metered.ca:80' }
-    ]
-  };
+  function createVUMeter() {
+    const container = document.getElementById('vuContainer');
+    container.innerHTML = '';
+    leds = [];
+    for (let i = 0; i < 32; i++) {
+      const led = document.createElement('div');
+      led.className = `vu-bar flex-1 bg-zinc-700 rounded`;
+      container.appendChild(led);
+      leds.push(led);
+    }
+  }
+
+  function updateVU() {
+    if (!analyser) return;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+    const avg = data.reduce((a, b) => a + b) / data.length;
+    const level = Math.min(1, avg / 180);
+
+    leds.forEach((led, i) => {
+      const pos = i / 32;
+      led.style.height = (pos < level ? 90 : 8) + "%";
+      led.style.backgroundColor = pos > 0.78 ? '#ef4444' : pos > 0.6 ? '#eab308' : '#22c55e';
+    });
+  }
 
   async function startTransmission() {
     const btn = document.getElementById('startBtn');
     const status = document.getElementById('status');
 
     if (isTransmitting) {
-      if (localStream) localStream.getTracks().forEach(t => t.stop());
-      if (peer) peer.destroy();
+      localStream?.getTracks().forEach(t => t.stop());
+      audioContext?.close();
+      peer?.destroy();
       btn.textContent = "🎤 INICIAR TRANSMISIÓN";
       document.getElementById('onAir').classList.add('hidden');
       document.getElementById('linkContainer').classList.add('hidden');
       isTransmitting = false;
-      status.textContent = "Transmisión detenida";
       return;
     }
 
     try {
+      // === MICRÓFONO ===
       localStream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: { ideal: 48000 }, echoCancellation: true, noiseSuppression: true, autoGainControl: false }
+        audio: {
+          sampleRate: { ideal: 48000 },
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false
+        }
       });
 
-      status.textContent = "Creando conexión...";
+      // === Audio Context + VU ===
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      source = audioContext.createMediaStreamSource(localStream);
+      gainNode = audioContext.createGain();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
 
+      source.connect(gainNode);
+      gainNode.connect(analyser);
+
+      createVUMeter();
+      setInterval(updateVU, 50);
+
+      // === Transmisión ===
       peer = new SimplePeer({
         initiator: true,
         trickle: false,
         stream: localStream,
-        config: config
+        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
       });
 
       peer.on('signal', data => {
@@ -97,17 +154,36 @@
         isTransmitting = true;
       });
 
-      peer.on('error', err => {
-        status.textContent = "Error: " + err.message;
-        console.error(err);
-      });
-
     } catch (err) {
-      status.textContent = "Error micrófono: " + err.message;
+      status.textContent = "❌ Error micrófono: " + err.message;
+      console.error(err);
     }
   }
 
+  // Ganancia
+  document.getElementById('gainSlider').addEventListener('input', e => {
+    if (gainNode) {
+      gainNode.gain.value = Math.pow(10, e.target.value / 20);
+      document.getElementById('gainValue').textContent = `+${e.target.value} dB`;
+    }
+  });
+
   document.getElementById('startBtn').addEventListener('click', startTransmission);
+
+  // Cargar micrófonos
+  async function loadMics() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const select = document.getElementById('micSelect');
+    select.innerHTML = '';
+    devices.filter(d => d.kind === 'audioinput').forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || 'Micrófono';
+      select.appendChild(opt);
+    });
+  }
+  loadMics();
+  navigator.mediaDevices.addEventListener('devicechange', loadMics);
 </script>
 </body>
 </html>
