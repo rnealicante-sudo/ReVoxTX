@@ -13,11 +13,8 @@
 <div class="max-w-md mx-auto bg-zinc-900 min-h-screen flex flex-col">
   <header class="bg-gradient-to-r from-red-700 to-red-600 px-6 py-6">
     <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-4xl font-bold">ReVoxTX</h1>
-        <p class="text-red-100">Transmisor</p>
-      </div>
-      <div id="onAir" class="hidden px-6 py-2 bg-red-600 rounded-full font-bold animate-pulse">● ON AIR</div>
+      <h1 class="text-4xl font-bold">ReVoxTX</h1>
+      <div id="onAir" class="hidden px-6 py-2 bg-red-600 rounded-full font-bold">● ON AIR</div>
     </div>
   </header>
 
@@ -27,18 +24,7 @@
       <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4"></select>
     </div>
 
-    <div>
-      <label class="block text-zinc-400 mb-2">Nivel de Entrada</label>
-      <div id="vuContainer" class="h-36 bg-zinc-950 border border-zinc-700 rounded-3xl p-4 flex items-end gap-1"></div>
-    </div>
-
-    <div>
-      <div class="flex justify-between mb-2">
-        <span>Ganancia</span>
-        <span id="gainValue" class="font-mono text-2xl text-emerald-400">+8 dB</span>
-      </div>
-      <input type="range" id="gainSlider" min="0" max="32" value="8" step="1" class="w-full accent-red-600">
-    </div>
+    <div id="statusTx" class="text-center text-sm font-mono bg-zinc-800 p-3 rounded-2xl">Listo</div>
   </main>
 
   <div class="p-6 border-t border-zinc-700">
@@ -56,18 +42,17 @@
 <script>
   let peer = null;
   let localStream = null;
-  let isTransmitting = false;
 
   async function startTransmission() {
     const btn = document.getElementById('startBtn');
+    const status = document.getElementById('statusTx');
 
-    if (isTransmitting) {
-      localStream?.getTracks().forEach(t => t.stop());
-      peer?.destroy();
+    if (peer) {
+      peer.destroy();
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
       btn.textContent = "🎤 INICIAR TRANSMISIÓN";
       document.getElementById('onAir').classList.add('hidden');
       document.getElementById('linkContainer').classList.add('hidden');
-      isTransmitting = false;
       return;
     }
 
@@ -76,23 +61,28 @@
         audio: { sampleRate: { ideal: 48000 }, echoCancellation: true, noiseSuppression: true }
       });
 
-      peer = new Peer();
+      status.textContent = "Conectando al servidor...";
+
+      peer = new Peer();   // Usamos el servidor por defecto
 
       peer.on('open', (id) => {
-        const fullLink = `${window.location.origin}/receiver.html?id=${id}`;
-        document.getElementById('link').textContent = fullLink;
+        const link = `${window.location.origin}/receiver.html?id=${id}`;
+        document.getElementById('link').textContent = link;
         document.getElementById('linkContainer').classList.remove('hidden');
         btn.textContent = "● ON AIR";
         document.getElementById('onAir').classList.remove('hidden');
-        isTransmitting = true;
+        status.textContent = `Transmisión activa - ID: ${id}`;
       });
 
-      peer.on('call', (call) => {
-        call.answer(localStream);
+      peer.on('call', (call) => call.answer(localStream));
+
+      peer.on('error', (err) => {
+        status.textContent = "Error: " + err.type;
+        console.error(err);
       });
 
     } catch (err) {
-      alert("Error al acceder al micrófono: " + err.message);
+      status.textContent = "Error micrófono: " + err.message;
     }
   }
 
