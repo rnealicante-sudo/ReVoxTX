@@ -8,59 +8,67 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-md w-full">
-    <h1 class="text-5xl font-bold text-center mb-1">ReVoxRX</h1>
-    <p class="text-center text-zinc-400 mb-10">Receptor en vivo</p>
+  <div class="max-w-md w-full text-center">
+    <h1 class="text-5xl font-bold mb-2">ReVoxRX</h1>
+    <p class="text-zinc-400 mb-10">Receptor en vivo</p>
 
-    <input id="peerId" placeholder="Pega el ID del transmisor" 
-           class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-5 text-center text-lg mb-6">
+    <input id="peerId" placeholder="Pega aquí el ID del transmisor" 
+           class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-5 text-lg text-center mb-6">
 
     <button id="connectBtn" 
             class="w-full h-14 text-xl font-semibold bg-emerald-600 rounded-3xl active:bg-emerald-700">
       🔊 CONECTAR Y ESCUCHAR
     </button>
 
-    <audio id="remoteAudio" autoplay controls class="w-full mt-8"></audio>
+    <audio id="remoteAudio" autoplay controls class="w-full mt-10 hidden"></audio>
 
-    <div id="status" class="mt-6 text-center font-mono text-sm text-emerald-400"></div>
+    <div id="status" class="mt-6 text-sm font-mono"></div>
   </div>
 
   <script>
-    let peer;
+    let peer = null;
 
-    document.getElementById('connectBtn').addEventListener('click', () => {
+    document.getElementById('connectBtn').addEventListener('click', async () => {
       const peerId = document.getElementById('peerId').value.trim();
-      if (!peerId) return alert('Por favor pega el ID');
+      if (!peerId) return alert("Por favor pega el ID del transmisor");
 
       const status = document.getElementById('status');
-      status.textContent = 'Conectando...';
+      status.textContent = "Conectando al transmisor...";
 
-      peer = new Peer();
+      try {
+        peer = new Peer();
 
-      peer.on('open', () => {
-        const call = peer.call(peerId);   // Receptor llama al transmisor
-        status.textContent = 'Llamando...';
-      });
-
-      peer.on('call', (call) => {
-        call.answer();                    // Acepta si recibe llamada (por si acaso)
-        call.on('stream', (stream) => {
-          const audio = document.getElementById('remoteAudio');
-          audio.srcObject = stream;
-          audio.play().catch(() => {});
-          status.textContent = '✅ ESCUCHANDO EN VIVO';
+        peer.on('open', () => {
+          console.log("Receptor listo, llamando a:", peerId);
+          const call = peer.call(peerId);   // Llamada al transmisor
+          status.textContent = "Llamando...";
         });
-      });
 
-      peer.on('error', (err) => {
-        document.getElementById('status').textContent = '❌ Error: ' + err.type;
-      });
+        peer.on('call', (call) => {
+          call.answer(); // Aceptamos si el transmisor nos llama
+          call.on('stream', (stream) => {
+            const audio = document.getElementById('remoteAudio');
+            audio.srcObject = stream;
+            audio.classList.remove('hidden');
+            audio.play();
+            status.innerHTML = '✅ <span class="text-emerald-400">ESCUCHANDO EN VIVO</span>';
+          });
+        });
+
+        peer.on('error', (err) => {
+          status.textContent = "❌ Error: " + err.message;
+          console.error(err);
+        });
+
+      } catch (err) {
+        status.textContent = "❌ Error de conexión";
+      }
     });
 
     // Auto-cargar ID desde URL
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('id')) {
-      document.getElementById('peerId').value = params.get('id');
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('id')) {
+      document.getElementById('peerId').value = urlParams.get('id');
     }
   </script>
 </body>
