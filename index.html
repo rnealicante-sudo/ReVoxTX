@@ -8,58 +8,74 @@
   <title>ReVoxTX</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
     .vu-bar { transition: height 0.06s linear; }
   </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen">
 
 <div class="max-w-md mx-auto bg-zinc-900 min-h-screen flex flex-col">
+
   <header class="bg-gradient-to-r from-red-700 to-red-600 px-6 py-6">
-    <h1 class="text-4xl font-bold text-center">ReVoxTX</h1>
+    <h1 class="text-4xl font-bold text-center tracking-tighter">ReVoxTX</h1>
     <p class="text-red-100 text-center text-sm">Transmisor Profesional</p>
   </header>
 
   <main class="flex-1 p-6 space-y-8">
+
+    <!-- Micrófono -->
     <div>
       <label class="block text-zinc-400 text-sm mb-2">🎤 MICRÓFONO</label>
-      <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4"></select>
+      <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-lg"></select>
     </div>
 
+    <!-- VU Meter -->
     <div>
       <label class="block text-zinc-400 text-sm mb-2">NIVEL DE ENTRADA</label>
-      <div id="vuContainer" class="h-40 bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-4 flex items-end gap-1"></div>
+      <div id="vuContainer" class="h-40 bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-4 flex items-end gap-1 overflow-hidden"></div>
+      <div class="flex justify-between text-xs text-zinc-500 mt-1 px-2">
+        <span>-42</span><span class="text-emerald-400">0 dB</span><span class="text-red-500">+12 dB</span>
+      </div>
     </div>
 
+    <!-- Ganancia -->
     <div>
       <div class="flex justify-between mb-3">
         <span class="text-zinc-400">GANANCIA</span>
         <span id="gainValue" class="font-mono text-3xl text-emerald-400">+8 dB</span>
       </div>
-      <input type="range" id="gainSlider" min="0" max="36" value="8" step="1" class="w-full accent-red-600">
+      <input type="range" id="gainSlider" min="0" max="36" value="8" step="1" class="w-full accent-red-600 h-3 rounded-full">
     </div>
 
     <button onclick="startTransmission()" id="startBtn"
-            class="w-full h-16 text-2xl font-bold bg-red-600 rounded-3xl active:bg-red-700">
+            class="w-full h-16 text-2xl font-bold bg-red-600 active:bg-red-700 rounded-3xl transition-all">
       🎤 INICIAR TRANSMISIÓN
     </button>
-  </main>
 
-  <div id="linkContainer" class="hidden p-6 border-t border-zinc-700 bg-zinc-900">
-    <p class="text-xs text-zinc-400 mb-3">ENLACE PARA RECEPTOR</p>
-    <div id="link" class="bg-zinc-950 p-5 rounded-2xl border border-dashed border-emerald-500 text-emerald-400 font-mono break-all"></div>
-    
-    <div class="grid grid-cols-4 gap-3 mt-6">
-      <button onclick="copyLink()" class="py-4 bg-zinc-800 rounded-2xl text-sm">📋</button>
-      <button onclick="shareWhatsApp()" class="py-4 bg-green-600 rounded-2xl text-sm">WA</button>
-      <button onclick="shareTelegram()" class="py-4 bg-blue-600 rounded-2xl text-sm">TG</button>
-      <button onclick="shareEmail()" class="py-4 bg-zinc-800 rounded-2xl text-sm">✉️</button>
+    <!-- Enlace -->
+    <div id="linkContainer" class="hidden space-y-4 mt-8">
+      <p class="text-xs text-zinc-400 tracking-widest">ENLACE PARA RECEPTOR</p>
+      <div id="viewLink" class="bg-zinc-950 p-5 rounded-2xl border border-dashed border-emerald-500 text-emerald-400 font-mono text-sm break-all"></div>
+      
+      <button onclick="openPush()" 
+              class="w-full h-12 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium">
+        📱 ABRIR EMISOR (en nueva pestaña)
+      </button>
+
+      <div class="grid grid-cols-4 gap-3">
+        <button onclick="copyLink()" class="py-4 bg-zinc-800 rounded-2xl text-sm">📋</button>
+        <button onclick="shareWhatsApp()" class="py-4 bg-green-600 rounded-2xl text-sm">WA</button>
+        <button onclick="shareTelegram()" class="py-4 bg-blue-600 rounded-2xl text-sm">TG</button>
+        <button onclick="shareEmail()" class="py-4 bg-zinc-800 rounded-2xl text-sm">✉️</button>
+      </div>
     </div>
-  </div>
+  </main>
 </div>
 
 <script>
   let audioContext, source, gainNode, analyser, localStream;
   let leds = [];
+  let currentRoom = "";
 
   function createVUMeter() {
     const container = document.getElementById('vuContainer');
@@ -87,7 +103,9 @@
   }
 
   async function startTransmission() {
+    const btn = document.getElementById('startBtn');
     const micId = document.getElementById('micSelect').value;
+
     try {
       localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -110,23 +128,30 @@
       createVUMeter();
       setInterval(updateVU, 45);
 
-      const room = "revox-" + Math.random().toString(36).substring(2, 10);
-      
-      // Configuración optimizada para iPhone + voz
-      const pushUrl = `https://vdo.ninja/?push=${room}&proaudio&novideo&audiobitrate=192&lowlatency&noap`;
-      const viewUrl = `https://vdo.ninja/?view=${room}&proaudio&novideo&audiobitrate=192&lowlatency`;
+      currentRoom = "revox-" + Math.random().toString(36).substring(2, 10);
 
-      document.getElementById('link').innerHTML = `<a href="${viewUrl}" target="_blank" class="underline">${viewUrl}</a>`;
+      const viewUrl = `https://vdo.ninja/?view=${currentRoom}&proaudio&novideo&audiobitrate=192&lowlatency`;
+
+      document.getElementById('viewLink').innerHTML = `
+        <a href="${viewUrl}" target="_blank" class="underline">${viewUrl}</a>
+      `;
       document.getElementById('linkContainer').classList.remove('hidden');
 
-      window.open(pushUrl, '_blank');
+      btn.textContent = "● TRANSMISIÓN PREPARADA";
+      btn.disabled = true;
 
     } catch (err) {
-      alert("Error micrófono: " + err.message);
+      alert("Error al acceder al micrófono:\n" + err.message);
     }
   }
 
-  // Ganancia y micrófonos (mismo código anterior)
+  function openPush() {
+    if (!currentRoom) return alert("Primero inicia la transmisión");
+    const pushUrl = `https://vdo.ninja/?push=${currentRoom}&proaudio&novideo&audiobitrate=192&lowlatency&noap`;
+    window.open(pushUrl, '_blank');
+  }
+
+  // Ganancia
   document.getElementById('gainSlider').addEventListener('input', e => {
     if (gainNode) {
       gainNode.gain.value = Math.pow(10, parseFloat(e.target.value) / 20);
@@ -134,6 +159,7 @@
     }
   });
 
+  // Cargar micrófonos
   async function loadMics() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const select = document.getElementById('micSelect');
@@ -149,10 +175,24 @@
   window.onload = loadMics;
   navigator.mediaDevices.addEventListener('devicechange', loadMics);
 
-  function copyLink() { navigator.clipboard.writeText(document.getElementById('link').querySelector('a').href); alert('Enlace copiado'); }
-  function shareWhatsApp() { const l = document.getElementById('link').querySelector('a').href; window.open(`https://wa.me/?text=${encodeURIComponent('🎙️ ReVoxTX: ' + l)}`); }
-  function shareTelegram() { const l = document.getElementById('link').querySelector('a').href; window.open(`https://t.me/share/url?url=${encodeURIComponent(l)}`); }
-  function shareEmail() { const l = document.getElementById('link').querySelector('a').href; window.location.href = `mailto:?subject=ReVoxTX&body=${encodeURIComponent(l)}`; }
+  // Compartir
+  function copyLink() {
+    const link = document.getElementById('viewLink').querySelector('a').href;
+    navigator.clipboard.writeText(link);
+    alert('✅ Enlace copiado');
+  }
+  function shareWhatsApp() {
+    const link = document.getElementById('viewLink').querySelector('a').href;
+    window.open(`https://wa.me/?text=${encodeURIComponent('🎙️ ReVoxTX - Transmisión en vivo:\n' + link)}`);
+  }
+  function shareTelegram() {
+    const link = document.getElementById('viewLink').querySelector('a').href;
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}`);
+  }
+  function shareEmail() {
+    const link = document.getElementById('viewLink').querySelector('a').href;
+    window.location.href = `mailto:?subject=ReVoxTX - Enlace en vivo&body=${encodeURIComponent(link)}`;
+  }
 </script>
 </body>
 </html>
