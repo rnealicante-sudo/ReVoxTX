@@ -2,197 +2,42 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>ReVoxTX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReVoxTX - Radio en Vivo</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-    .vu-bar { transition: height 0.06s linear; }
-  </style>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen">
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-zinc-900 rounded-3xl p-8">
+    <h1 class="text-4xl font-bold text-center mb-2">ReVoxTX</h1>
+    <p class="text-center text-red-400 mb-8">Radio en Vivo</p>
 
-<div class="max-w-md mx-auto bg-zinc-900 min-h-screen flex flex-col">
-
-  <header class="bg-gradient-to-r from-red-700 to-red-600 px-6 py-6">
-    <h1 class="text-4xl font-bold text-center tracking-tighter">ReVoxTX</h1>
-    <p class="text-red-100 text-center text-sm">Transmisor Profesional</p>
-  </header>
-
-  <main class="flex-1 p-6 space-y-8">
-
-    <!-- Micrófono -->
-    <div>
-      <label class="block text-zinc-400 text-sm mb-2">🎤 MICRÓFONO</label>
-      <select id="micSelect" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-lg"></select>
+    <div class="mb-8">
+      <p class="text-zinc-400 mb-3">Enlace de escucha (compártelo)</p>
+      <input id="streamUrl" placeholder="http://tu-servidor.com:8000/stream" 
+             class="w-full bg-zinc-800 p-4 rounded-2xl text-sm">
     </div>
 
-    <!-- VU Meter -->
-    <div>
-      <label class="block text-zinc-400 text-sm mb-2">NIVEL DE ENTRADA</label>
-      <div id="vuContainer" class="h-40 bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-4 flex items-end gap-1 overflow-hidden"></div>
-      <div class="flex justify-between text-xs text-zinc-500 mt-1 px-2">
-        <span>-42</span><span class="text-emerald-400">0 dB</span><span class="text-red-500">+12 dB</span>
-      </div>
-    </div>
-
-    <!-- Ganancia -->
-    <div>
-      <div class="flex justify-between mb-3">
-        <span class="text-zinc-400">GANANCIA</span>
-        <span id="gainValue" class="font-mono text-3xl text-emerald-400">+8 dB</span>
-      </div>
-      <input type="range" id="gainSlider" min="0" max="36" value="8" step="1" class="w-full accent-red-600 h-3 rounded-full">
-    </div>
-
-    <button onclick="startTransmission()" id="startBtn"
-            class="w-full h-16 text-2xl font-bold bg-red-600 active:bg-red-700 rounded-3xl transition-all">
-      🎤 INICIAR TRANSMISIÓN
+    <button onclick="playStream()" 
+            class="w-full h-16 bg-emerald-600 text-xl font-bold rounded-3xl mb-6">
+      ▶️ ESCUCHAR EN VIVO
     </button>
 
-    <!-- Enlace -->
-    <div id="linkContainer" class="hidden space-y-4 mt-8">
-      <p class="text-xs text-zinc-400 tracking-widest">ENLACE PARA RECEPTOR</p>
-      <div id="viewLink" class="bg-zinc-950 p-5 rounded-2xl border border-dashed border-emerald-500 text-emerald-400 font-mono text-sm break-all"></div>
-      
-      <button onclick="openPush()" 
-              class="w-full h-12 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium">
-        📱 ABRIR EMISOR (en nueva pestaña)
-      </button>
+    <audio id="player" controls class="w-full hidden"></audio>
 
-      <div class="grid grid-cols-4 gap-3">
-        <button onclick="copyLink()" class="py-4 bg-zinc-800 rounded-2xl text-sm">📋</button>
-        <button onclick="shareWhatsApp()" class="py-4 bg-green-600 rounded-2xl text-sm">WA</button>
-        <button onclick="shareTelegram()" class="py-4 bg-blue-600 rounded-2xl text-sm">TG</button>
-        <button onclick="shareEmail()" class="py-4 bg-zinc-800 rounded-2xl text-sm">✉️</button>
-      </div>
-    </div>
-  </main>
-</div>
+    <div id="status" class="text-center text-sm mt-4"></div>
+  </div>
 
-<script>
-  let audioContext, source, gainNode, analyser, localStream;
-  let leds = [];
-  let currentRoom = "";
+  <script>
+    function playStream() {
+      const url = document.getElementById('streamUrl').value.trim();
+      if (!url) return alert("Pega tu URL de Icecast");
 
-  function createVUMeter() {
-    const container = document.getElementById('vuContainer');
-    container.innerHTML = '';
-    leds = [];
-    for (let i = 0; i < 32; i++) {
-      const led = document.createElement('div');
-      led.className = `vu-bar flex-1 bg-zinc-700 rounded`;
-      container.appendChild(led);
-      leds.push(led);
+      const audio = document.getElementById('player');
+      audio.src = url;
+      audio.classList.remove('hidden');
+      audio.play();
+      document.getElementById('status').innerHTML = '✅ Reproduciendo en vivo';
     }
-  }
-
-  function updateVU() {
-    if (!analyser) return;
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(data);
-    const avg = data.reduce((a,b) => a + b) / data.length;
-    const level = Math.min(1, avg / 170);
-    leds.forEach((led, i) => {
-      const pos = i / 32;
-      led.style.height = (pos < level ? 92 : 8) + "%";
-      led.style.backgroundColor = pos > 0.78 ? '#ef4444' : pos > 0.6 ? '#eab308' : '#22c55e';
-    });
-  }
-
-  async function startTransmission() {
-    const btn = document.getElementById('startBtn');
-    const micId = document.getElementById('micSelect').value;
-
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: micId ? { exact: micId } : undefined,
-          sampleRate: { ideal: 48000 },
-          echoCancellation: false,
-          noiseSuppression: true
-        }
-      });
-
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaStreamSource(localStream);
-      gainNode = audioContext.createGain();
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-
-      source.connect(gainNode);
-      gainNode.connect(analyser);
-
-      createVUMeter();
-      setInterval(updateVU, 45);
-
-      currentRoom = "revox-" + Math.random().toString(36).substring(2, 10);
-
-      const viewUrl = `https://vdo.ninja/?view=${currentRoom}&proaudio&novideo&audiobitrate=192&lowlatency`;
-
-      document.getElementById('viewLink').innerHTML = `
-        <a href="${viewUrl}" target="_blank" class="underline">${viewUrl}</a>
-      `;
-      document.getElementById('linkContainer').classList.remove('hidden');
-
-      btn.textContent = "● TRANSMISIÓN PREPARADA";
-      btn.disabled = true;
-
-    } catch (err) {
-      alert("Error al acceder al micrófono:\n" + err.message);
-    }
-  }
-
-  function openPush() {
-    if (!currentRoom) return alert("Primero inicia la transmisión");
-    const pushUrl = `https://vdo.ninja/?push=${currentRoom}&proaudio&novideo&audiobitrate=192&lowlatency&noap`;
-    window.open(pushUrl, '_blank');
-  }
-
-  // Ganancia
-  document.getElementById('gainSlider').addEventListener('input', e => {
-    if (gainNode) {
-      gainNode.gain.value = Math.pow(10, parseFloat(e.target.value) / 20);
-      document.getElementById('gainValue').textContent = `+${e.target.value} dB`;
-    }
-  });
-
-  // Cargar micrófonos
-  async function loadMics() {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const select = document.getElementById('micSelect');
-    select.innerHTML = '';
-    devices.filter(d => d.kind === 'audioinput').forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.deviceId;
-      opt.textContent = d.label ? d.label.replace(/\s*\(.*?\)/, '') : 'Micrófono';
-      select.appendChild(opt);
-    });
-  }
-
-  window.onload = loadMics;
-  navigator.mediaDevices.addEventListener('devicechange', loadMics);
-
-  // Compartir
-  function copyLink() {
-    const link = document.getElementById('viewLink').querySelector('a').href;
-    navigator.clipboard.writeText(link);
-    alert('✅ Enlace copiado');
-  }
-  function shareWhatsApp() {
-    const link = document.getElementById('viewLink').querySelector('a').href;
-    window.open(`https://wa.me/?text=${encodeURIComponent('🎙️ ReVoxTX - Transmisión en vivo:\n' + link)}`);
-  }
-  function shareTelegram() {
-    const link = document.getElementById('viewLink').querySelector('a').href;
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}`);
-  }
-  function shareEmail() {
-    const link = document.getElementById('viewLink').querySelector('a').href;
-    window.location.href = `mailto:?subject=ReVoxTX - Enlace en vivo&body=${encodeURIComponent(link)}`;
-  }
-</script>
+  </script>
 </body>
 </html>
